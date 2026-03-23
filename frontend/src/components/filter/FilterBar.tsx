@@ -183,7 +183,9 @@ function PriceRangeFilter({
           value={currentMin}
           onChange={(e) => {
             const v = Number(e.target.value);
-            onChange({ min: v === 0 ? null : v, max: value.max });
+            const newMin = v === 0 ? null : v;
+            const newMax = value.max != null && v > value.max ? newMin : value.max;
+            onChange({ min: newMin, max: newMax });
           }}
           className="flex-1 accent-blue-600"
         />
@@ -195,7 +197,9 @@ function PriceRangeFilter({
           value={currentMax}
           onChange={(e) => {
             const v = Number(e.target.value);
-            onChange({ min: value.min, max: v >= max ? null : v });
+            const newMax = v >= max ? null : v;
+            const newMin = value.min != null && v < value.min ? newMax : value.min;
+            onChange({ min: newMin, max: newMax });
           }}
           className="flex-1 accent-blue-600"
         />

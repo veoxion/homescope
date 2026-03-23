@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsNumber, IsOptional, IsString, Min, MaxLength } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class QueryBuildingsDto {
@@ -10,6 +10,6 @@ export class QueryBuildingsDto {
 }
 
 export class SearchBuildingsDto {
-  @IsString() q: string;
+  @IsString() @MaxLength(100) q: string;
   @Type(() => Number) @IsOptional() @IsNumber() @Min(1) limit?: number = 10;
 }

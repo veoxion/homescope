@@ -32,6 +32,7 @@ export class PoisService {
 
   async findNearby(dto: QueryPoisDto) {
     const apiKey = this.configService.get<string>('KAKAO_API_KEY');
+    if (!apiKey) return { pois: [] };
     const categories = dto.category ? [dto.category] : ['SW8', 'BU4', 'SC4'];
 
     const results = await Promise.all(

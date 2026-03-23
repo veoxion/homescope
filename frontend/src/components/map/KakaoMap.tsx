@@ -4,20 +4,8 @@ import { Map, MapMarker, MarkerClusterer } from 'react-kakao-maps-sdk';
 import { useMapStore } from '@/stores/mapStore';
 import { useListings } from '@/hooks/useListings';
 import { useDetailStore } from '@/stores/detailStore';
-import { useState } from 'react';
-
-interface Listing {
-  id: string;
-  lat: number;
-  lng: number;
-  trade_type: string;
-  sale_price?: number;
-  jeonse_price?: number;
-  deposit?: number;
-  monthly_rent?: number;
-  area_m2: number;
-  address: string;
-}
+import { useState, useRef, useCallback } from 'react';
+import type { Listing } from '@/types/api';
 
 const SDK_URL = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&libraries=clusterer&autoload=false`;
 
@@ -33,6 +21,25 @@ export default function KakaoMap() {
   const openPanel = useDetailStore((s) => s.openPanel);
 
   const { data: listings = [] } = useListings();
+
+  const boundsTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const updateBounds = useCallback(
+    (map: any) => {
+      clearTimeout(boundsTimerRef.current);
+      boundsTimerRef.current = setTimeout(() => {
+        const bounds = map.getBounds();
+        const sw = bounds.getSouthWest();
+        const ne = bounds.getNorthEast();
+        setBounds({
+          swLat: sw.getLat(),
+          swLng: sw.getLng(),
+          neLat: ne.getLat(),
+          neLng: ne.getLng(),
+        });
+      }, 300);
+    },
+    [setBounds],
+  );
 
   return (
     <>
@@ -68,17 +75,7 @@ export default function KakaoMap() {
             setCenter({ lat: c.getLat(), lng: c.getLng() });
           }}
           onZoomChanged={(map) => setZoom(map.getLevel())}
-          onBoundsChanged={(map) => {
-            const bounds = map.getBounds();
-            const sw = bounds.getSouthWest();
-            const ne = bounds.getNorthEast();
-            setBounds({
-              swLat: sw.getLat(),
-              swLng: sw.getLng(),
-              neLat: ne.getLat(),
-              neLng: ne.getLng(),
-            });
-          }}
+          onBoundsChanged={updateBounds}
         >
           <MarkerClusterer averageCenter minLevel={10}>
             {(listings as Listing[]).map((listing) => (

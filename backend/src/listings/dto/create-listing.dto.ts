@@ -1,14 +1,21 @@
-import { IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsNumber, IsOptional, IsString, IsUUID, Min, IsEnum, ValidateIf } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateListingDto {
   @IsUUID() buildingId: string;
-  @IsString() tradeType: string; // 매매, 전세, 월세
+  @IsEnum(['매매', '전세', '월세']) tradeType: string;
 
-  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) salePrice?: number;
-  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) jeonsePrice?: number;
-  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) deposit?: number;
-  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) monthlyRent?: number;
+  @ValidateIf((o) => o.tradeType === '매매')
+  @Type(() => Number) @IsNumber() @Min(0) salePrice?: number;
+
+  @ValidateIf((o) => o.tradeType === '전세')
+  @Type(() => Number) @IsNumber() @Min(0) jeonsePrice?: number;
+
+  @ValidateIf((o) => o.tradeType === '월세')
+  @Type(() => Number) @IsNumber() @Min(0) deposit?: number;
+
+  @ValidateIf((o) => o.tradeType === '월세')
+  @Type(() => Number) @IsNumber() @Min(0) monthlyRent?: number;
 
   @Type(() => Number) @IsNumber() @Min(0) areaM2: number;
   @Type(() => Number) @IsNumber() floor: number;

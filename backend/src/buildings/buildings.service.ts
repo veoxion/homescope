@@ -43,6 +43,8 @@ export class BuildingsService {
   }
 
   async search(dto: SearchBuildingsDto) {
+    const escaped = dto.q.replace(/[%_\\]/g, '\\$&');
+    const pattern = `%${escaped}%`;
     return this.prisma.$queryRaw`
       SELECT
         b.id,
@@ -52,7 +54,7 @@ export class BuildingsService {
         ST_Y(b.location::geometry) AS lat,
         ST_X(b.location::geometry) AS lng
       FROM buildings b
-      WHERE b.address ILIKE ${'%' + dto.q + '%'}
+      WHERE (b.address ILIKE ${pattern} OR b.building_name ILIKE ${pattern})
       LIMIT ${dto.limit}
     `;
   }

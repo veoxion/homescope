@@ -1,9 +1,13 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, HttpCode, Logger } from '@nestjs/common';
 import { DataPipelineService } from './data-pipeline.service';
 import { MarketPricesService } from '../market-prices/market-prices.service';
+import { AdminApiKeyGuard } from '../common/admin-api-key.guard';
 
 @Controller('data-pipeline')
+@UseGuards(AdminApiKeyGuard)
 export class DataPipelineController {
+  private readonly logger = new Logger(DataPipelineController.name);
+
   constructor(
     private readonly pipelineService: DataPipelineService,
     private readonly marketPricesService: MarketPricesService,
@@ -21,10 +25,14 @@ export class DataPipelineController {
     return this.pipelineService.syncAll(body.lawdCds, body.months);
   }
 
-  /** 모든 건물 시세 재계산 */
+  /** 모든 건물 시세 재계산 (비동기 — 즉시 202 반환) */
   @Post('recalculate-prices')
+  @HttpCode(202)
   recalculatePrices() {
-    return this.marketPricesService.calculateAll();
+    this.marketPricesService.calculateAll().catch((err) => {
+      this.logger.error(`시세 재계산 실패: ${err.message}`);
+    });
+    return { message: '시세 재계산이 백그라운드에서 시작되었습니다.' };
   }
 
   /** 좌표 미설정 건물 일괄 지오코딩 */

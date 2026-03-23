@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { PrismaService } from '../prisma/prisma.service';
@@ -53,17 +53,17 @@ export class DataPipelineService {
    */
   async fetchAptTrades(lawdCd: string, dealYm: string) {
     if (!this.apiKey) {
-      throw new Error(
+      throw new BadRequestException(
         'MOLIT_API_KEY가 설정되지 않았습니다. .env에 API 키를 등록해주세요.',
       );
     }
 
     // 입력값 검증
     if (!/^\d{5}$/.test(lawdCd)) {
-      throw new Error(`유효하지 않은 법정동 코드: "${lawdCd}" (5자리 숫자 필요)`);
+      throw new BadRequestException(`유효하지 않은 법정동 코드: "${lawdCd}" (5자리 숫자 필요)`);
     }
     if (!/^\d{6}$/.test(dealYm)) {
-      throw new Error(`유효하지 않은 거래연월: "${dealYm}" (YYYYMM 형식 필요)`);
+      throw new BadRequestException(`유효하지 않은 거래연월: "${dealYm}" (YYYYMM 형식 필요)`);
     }
 
     this.logger.log(`실거래 수집: lawdCd=${lawdCd}, dealYm=${dealYm}`);
@@ -264,10 +264,10 @@ export class DataPipelineService {
    */
   async syncAll(lawdCds: string[], months = 12) {
     if (!lawdCds || lawdCds.length === 0) {
-      throw new Error('법정동 코드를 1개 이상 입력해주세요.');
+      throw new BadRequestException('법정동 코드를 1개 이상 입력해주세요.');
     }
     if (months < 1 || months > 36) {
-      throw new Error('수집 개월 수는 1~36 사이여야 합니다.');
+      throw new BadRequestException('수집 개월 수는 1~36 사이여야 합니다.');
     }
 
     const allAffected = new Set<string>();

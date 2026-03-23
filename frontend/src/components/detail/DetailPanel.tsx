@@ -4,52 +4,9 @@ import { useListing } from '@/hooks/useListing';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useMarketPrices } from '@/hooks/useMarketPrices';
 import { usePois } from '@/hooks/usePois';
-import { useState, useMemo } from 'react';
-
-// ---- types ----
-
-interface RawListing {
-  id: string;
-  building_id: string;
-  trade_type: string;
-  sale_price?: number;
-  jeonse_price?: number;
-  deposit?: number;
-  monthly_rent?: number;
-  area_m2: number;
-  floor: number;
-  room_count: number;
-  status: string;
-  listed_at: string;
-  address: string;
-  building_name?: string;
-  residence_type: string;
-  build_year: number;
-  lat: number;
-  lng: number;
-}
-
-interface Transaction {
-  id: string;
-  tradeType: string;
-  price: number;
-  deposit?: number;
-  monthlyRent?: number;
-  areaM2: number;
-  floor: number;
-  tradedAt: string;
-}
-
-interface MarketPrice {
-  id: string;
-  tradeType: string;
-  areaM2: number;
-  medianPrice: number;
-  medianMonthlyRent?: number;
-  transactionCount: number;
-  periodStart: string;
-  periodEnd: string;
-}
+import { useState, useMemo, useEffect } from 'react';
+import { apiClient } from '@/lib/axios';
+import type { Listing as RawListing, Transaction, MarketPrice } from '@/types/api';
 
 // ---- helpers ----
 
@@ -77,46 +34,9 @@ function formatDate(dateStr?: string): string {
   return new Date(dateStr).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
 }
 
-// ---- Finance calculator ----
+// ---- Finance types ----
 
 type RepaymentType = 'equalPayment' | 'equalPrincipal';
-
-function roundToManwon(v: number): number {
-  return Math.round(v);
-}
-
-function calcEqualPayment(principal: number, annualRate: number, termMonths: number) {
-  const r = annualRate / 12;
-  let pmt: number;
-  if (annualRate === 0) {
-    pmt = roundToManwon(principal / termMonths);
-  } else {
-    const cf = Math.pow(1 + r, termMonths);
-    pmt = roundToManwon(principal * r * cf / (cf - 1));
-  }
-  let totalInterest = 0;
-  let remaining = principal;
-  for (let i = 1; i <= termMonths; i++) {
-    const interest = roundToManwon(remaining * r);
-    const principalPart = i === termMonths ? remaining : pmt - interest;
-    remaining -= principalPart;
-    totalInterest += interest;
-  }
-  return { monthlyPayment: pmt, totalInterest, totalPayment: principal + totalInterest };
-}
-
-function calcEqualPrincipal(principal: number, annualRate: number, termMonths: number) {
-  const r = annualRate / 12;
-  const monthlyPrincipal = roundToManwon(principal / termMonths);
-  let totalInterest = 0;
-  let remaining = principal;
-  const firstMonthPayment = monthlyPrincipal + roundToManwon(remaining * r);
-  for (let i = 1; i <= termMonths; i++) {
-    totalInterest += roundToManwon(remaining * r);
-    remaining -= i === termMonths ? remaining : monthlyPrincipal;
-  }
-  return { monthlyPayment: firstMonthPayment, totalInterest, totalPayment: principal + totalInterest };
-}
 
 // ---- Sub-components ----
 
@@ -274,13 +194,36 @@ function FinanceTab({ listing }: { listing: RawListing }) {
     [propertyPrice, ltv]
   );
 
-  const result = useMemo(() => {
-    if (loanAmount <= 0) return null;
-    const annualRate = annualRatePct / 100;
-    const termMonths = termYears * 12;
-    return repaymentType === 'equalPayment'
-      ? calcEqualPayment(loanAmount, annualRate, termMonths)
-      : calcEqualPrincipal(loanAmount, annualRate, termMonths);
+  const [result, setResult] = useState<{
+    monthlyPayment: number;
+    totalInterest: number;
+    totalPayment: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (loanAmount <= 0) { setResult(null); return; }
+    const controller = new AbortController();
+    const repType = repaymentType === 'equalPayment' ? '원리금균등' : '원금균등';
+    apiClient
+      .get('/finance/interest', {
+        params: {
+          loanAmount,
+          annualRate: annualRatePct,
+          repaymentType: repType,
+          months: termYears * 12,
+        },
+        signal: controller.signal,
+      })
+      .then((res) => {
+        const s = res.data.summary;
+        setResult({
+          monthlyPayment: s.firstMonthPayment,
+          totalInterest: s.totalInterest,
+          totalPayment: s.totalPayment,
+        });
+      })
+      .catch(() => {});
+    return () => controller.abort();
   }, [loanAmount, annualRatePct, termYears, repaymentType]);
 
   return (
@@ -412,7 +355,9 @@ export default function DetailPanel() {
   const buildingId = rawListing?.building_id ?? null;
 
   return (
-    <div className="absolute top-0 right-0 w-96 h-full bg-white shadow-lg z-10 flex flex-col">
+    <div className="absolute z-10 flex flex-col bg-white shadow-lg
+      max-md:bottom-0 max-md:left-0 max-md:right-0 max-md:h-[60vh] max-md:rounded-t-2xl
+      md:top-0 md:right-0 md:w-96 md:h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
         <h2 className="text-base font-semibold">매물 상세</h2>
@@ -453,8 +398,8 @@ export default function DetailPanel() {
         {rawListing && (
           <>
             {activeTab === 'listing' && <ListingTab listing={rawListing} />}
-            {activeTab === 'market' && buildingId && <MarketTab buildingId={buildingId} />}
-            {activeTab === 'transaction' && buildingId && <TransactionTab buildingId={buildingId} />}
+            {activeTab === 'market' && (buildingId ? <MarketTab buildingId={buildingId} /> : <EmptyState message="건물 정보를 불러올 수 없습니다." />)}
+            {activeTab === 'transaction' && (buildingId ? <TransactionTab buildingId={buildingId} /> : <EmptyState message="건물 정보를 불러올 수 없습니다." />)}
             {activeTab === 'finance' && <FinanceTab listing={rawListing} />}
           </>
         )}

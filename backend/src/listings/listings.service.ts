@@ -35,8 +35,8 @@ export class ListingsService {
         )
         ${dto.tradeType ? Prisma.sql`AND l.trade_type = ${dto.tradeType}` : Prisma.empty}
         ${residenceTypeList?.length ? Prisma.sql`AND b.residence_type = ANY(${residenceTypeList}::text[])` : Prisma.empty}
-        ${dto.priceMin != null ? Prisma.sql`AND l.sale_price >= ${dto.priceMin}` : Prisma.empty}
-        ${dto.priceMax != null ? Prisma.sql`AND l.sale_price <= ${dto.priceMax}` : Prisma.empty}
+        ${dto.priceMin != null ? Prisma.sql`AND COALESCE(l.sale_price, l.jeonse_price) >= ${dto.priceMin}` : Prisma.empty}
+        ${dto.priceMax != null ? Prisma.sql`AND COALESCE(l.sale_price, l.jeonse_price) <= ${dto.priceMax}` : Prisma.empty}
         ${dto.depositMin != null ? Prisma.sql`AND l.deposit >= ${dto.depositMin}` : Prisma.empty}
         ${dto.depositMax != null ? Prisma.sql`AND l.deposit <= ${dto.depositMax}` : Prisma.empty}
         ${dto.monthlyRentMin != null ? Prisma.sql`AND l.monthly_rent >= ${dto.monthlyRentMin}` : Prisma.empty}

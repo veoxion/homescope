@@ -1,10 +1,11 @@
-import { Controller, Get, Post, Delete, Param, Query, Body } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Query, Body, UseGuards } from '@nestjs/common';
 import { BuildingsService } from './buildings.service';
 import { QueryBuildingsDto, SearchBuildingsDto } from './dto/query-buildings.dto';
 import { CreateBuildingDto } from './dto/create-building.dto';
 import { TransactionsService } from '../transactions/transactions.service';
 import { MarketPricesService } from '../market-prices/market-prices.service';
 import { ListingsService } from '../listings/listings.service';
+import { AdminApiKeyGuard } from '../common/admin-api-key.guard';
 
 @Controller('buildings')
 export class BuildingsController {
@@ -16,6 +17,7 @@ export class BuildingsController {
   ) {}
 
   @Post()
+  @UseGuards(AdminApiKeyGuard)
   create(@Body() dto: CreateBuildingDto) {
     return this.service.create(dto);
   }
@@ -41,6 +43,7 @@ export class BuildingsController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminApiKeyGuard)
   delete(@Param('id') id: string) {
     return this.service.delete(id);
   }

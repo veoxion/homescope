@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsNumber, IsOptional, IsString, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class QueryListingsDto {
@@ -17,5 +17,5 @@ export class QueryListingsDto {
   @Type(() => Number) @IsOptional() @IsNumber() areaMin?: number;
   @Type(() => Number) @IsOptional() @IsNumber() areaMax?: number;
   @Type(() => Number) @IsOptional() @IsNumber() @Min(1) page?: number = 1;
-  @Type(() => Number) @IsOptional() @IsNumber() @Min(1) limit?: number = 50;
+  @Type(() => Number) @IsOptional() @IsNumber() @Min(1) @Max(500) limit?: number = 50;
 }
