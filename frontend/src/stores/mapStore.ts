@@ -1,18 +1,12 @@
 import { create } from 'zustand';
-
-interface MapBounds {
-  swLat: number;
-  swLng: number;
-  neLat: number;
-  neLng: number;
-}
+import type { MapBounds, LatLng } from '@/types/api';
 
 interface MapStore {
-  center: { lat: number; lng: number };
+  center: LatLng;
   zoom: number;
   bounds: MapBounds | null;
   selectedBuildingId: string | null;
-  setCenter: (center: { lat: number; lng: number }) => void;
+  setCenter: (center: LatLng) => void;
   setZoom: (zoom: number) => void;
   setBounds: (bounds: MapBounds) => void;
   setSelectedBuildingId: (id: string | null) => void;

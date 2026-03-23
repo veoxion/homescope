@@ -1,11 +1,12 @@
 'use client';
 import Script from 'next/script';
-import { Map, MapMarker, MarkerClusterer } from 'react-kakao-maps-sdk';
+import { Map, MarkerClusterer } from 'react-kakao-maps-sdk';
 import { useMapStore } from '@/stores/mapStore';
 import { useListings } from '@/hooks/useListings';
 import { useDetailStore } from '@/stores/detailStore';
 import { useState, useRef, useCallback } from 'react';
 import type { Listing } from '@/types/api';
+import ListingMarker from './ListingMarker';
 
 const SDK_URL = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&libraries=clusterer&autoload=false`;
 
@@ -19,6 +20,7 @@ export default function KakaoMap() {
   const setZoom = useMapStore((s) => s.setZoom);
   const setBounds = useMapStore((s) => s.setBounds);
   const openPanel = useDetailStore((s) => s.openPanel);
+  const selectedListingId = useDetailStore((s) => s.selectedListingId);
 
   const { data: listings = [] } = useListings();
 
@@ -79,10 +81,11 @@ export default function KakaoMap() {
         >
           <MarkerClusterer averageCenter minLevel={10}>
             {(listings as Listing[]).map((listing) => (
-              <MapMarker
+              <ListingMarker
                 key={listing.id}
-                position={{ lat: listing.lat, lng: listing.lng }}
+                listing={listing}
                 onClick={() => openPanel(listing.id)}
+                isSelected={listing.id === selectedListingId}
               />
             ))}
           </MarkerClusterer>

@@ -44,7 +44,7 @@ export default function FilterBar() {
   return (
     <div className="bg-white shadow-sm">
       {/* Main filter row */}
-      <div className="flex items-center gap-2 px-4 py-2 overflow-x-auto">
+      <div className="flex items-center gap-2 px-4 py-2 overflow-x-auto scrollbar-hide max-md:px-3 max-md:py-1.5">
         {/* 거래유형 */}
         <div className="flex gap-1 shrink-0">
           {TRADE_TYPES.map((t) => (

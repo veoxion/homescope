@@ -4,9 +4,9 @@ import { useListing } from '@/hooks/useListing';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useMarketPrices } from '@/hooks/useMarketPrices';
 import { usePois } from '@/hooks/usePois';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { apiClient } from '@/lib/axios';
-import type { Listing as RawListing, Transaction, MarketPrice } from '@/types/api';
+import type { Listing as RawListing, Transaction, MarketPrice, Poi, RepaymentType, FinanceResult } from '@/types/api';
 
 // ---- helpers ----
 
@@ -33,10 +33,6 @@ function formatDate(dateStr?: string): string {
   if (!dateStr) return '-';
   return new Date(dateStr).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
 }
-
-// ---- Finance types ----
-
-type RepaymentType = 'equalPayment' | 'equalPrincipal';
 
 // ---- Sub-components ----
 
@@ -194,11 +190,7 @@ function FinanceTab({ listing }: { listing: RawListing }) {
     [propertyPrice, ltv]
   );
 
-  const [result, setResult] = useState<{
-    monthlyPayment: number;
-    totalInterest: number;
-    totalPayment: number;
-  } | null>(null);
+  const [result, setResult] = useState<FinanceResult | null>(null);
 
   useEffect(() => {
     if (loanAmount <= 0) { setResult(null); return; }
@@ -340,6 +332,10 @@ const TABS = [
   { key: 'finance', label: '금융계산' },
 ] as const;
 
+// 모바일 하단 시트 snap 포인트 (vh 단위)
+const SNAP_POINTS = { collapsed: 30, half: 60, full: 90 };
+const SWIPE_CLOSE_THRESHOLD = 150;
+
 export default function DetailPanel() {
   const isPanelOpen = useDetailStore((s) => s.isPanelOpen);
   const selectedListingId = useDetailStore((s) => s.selectedListingId);
@@ -349,61 +345,135 @@ export default function DetailPanel() {
 
   const { data: listing, isLoading, isError } = useListing(selectedListingId);
 
+  // 모바일 드래그 상태
+  const [sheetHeight, setSheetHeight] = useState(SNAP_POINTS.half);
+  const dragStartY = useRef(0);
+  const dragStartHeight = useRef(0);
+  const isDragging = useRef(false);
+
+  // 패널 열릴 때 초기 높이 리셋
+  useEffect(() => {
+    if (isPanelOpen) setSheetHeight(SNAP_POINTS.half);
+  }, [isPanelOpen, selectedListingId]);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    isDragging.current = true;
+    dragStartY.current = e.touches[0].clientY;
+    dragStartHeight.current = sheetHeight;
+  }, [sheetHeight]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isDragging.current) return;
+    const deltaY = dragStartY.current - e.touches[0].clientY;
+    const deltaVh = (deltaY / window.innerHeight) * 100;
+    const newHeight = Math.min(SNAP_POINTS.full, Math.max(15, dragStartHeight.current + deltaVh));
+    setSheetHeight(newHeight);
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    isDragging.current = false;
+    // 낮은 위치로 드래그하면 닫기
+    if (sheetHeight < 20) {
+      closePanel();
+      return;
+    }
+    // 가장 가까운 snap 포인트로 이동
+    const points = [SNAP_POINTS.collapsed, SNAP_POINTS.half, SNAP_POINTS.full];
+    const nearest = points.reduce((prev, curr) =>
+      Math.abs(curr - sheetHeight) < Math.abs(prev - sheetHeight) ? curr : prev
+    );
+    setSheetHeight(nearest);
+  }, [sheetHeight, closePanel]);
+
   if (!isPanelOpen || !selectedListingId) return null;
 
   const rawListing = listing as RawListing | undefined;
   const buildingId = rawListing?.building_id ?? null;
 
   return (
-    <div className="absolute z-10 flex flex-col bg-white shadow-lg
-      max-md:bottom-0 max-md:left-0 max-md:right-0 max-md:h-[60vh] max-md:rounded-t-2xl
-      md:top-0 md:right-0 md:w-96 md:h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
-        <h2 className="text-base font-semibold">매물 상세</h2>
-        <button
-          onClick={closePanel}
-          className="text-gray-400 hover:text-gray-600 text-xl leading-none"
-          aria-label="닫기"
+    <>
+      {/* 모바일 오버레이 배경 */}
+      <div
+        className="md:hidden fixed inset-0 bg-black/30 z-[9]"
+        onClick={closePanel}
+      />
+
+      <div
+        className="absolute z-10 flex flex-col bg-white shadow-lg
+          max-md:fixed max-md:bottom-0 max-md:left-0 max-md:right-0 max-md:rounded-t-2xl max-md:z-10
+          md:top-0 md:right-0 md:w-96 md:h-full"
+        style={{
+          // 모바일에서만 동적 높이 적용
+          maxHeight: undefined,
+        }}
+      >
+        {/* 모바일 전용: 드래그 핸들 */}
+        <div
+          className="md:hidden flex justify-center pt-2 pb-1 cursor-grab active:cursor-grabbing shrink-0 touch-none"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
-          &times;
-        </button>
-      </div>
+          <div className="w-10 h-1 bg-gray-300 rounded-full" />
+        </div>
 
-      {/* Tabs */}
-      <div className="flex border-b shrink-0">
-        {TABS.map((tab) => (
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
+          <h2 className="text-base font-semibold">매물 상세</h2>
           <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 py-2 text-xs font-medium transition-colors ${
-              activeTab === tab.key
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
+            onClick={closePanel}
+            className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+            aria-label="닫기"
           >
-            {tab.label}
+            &times;
           </button>
-        ))}
+        </div>
+
+        {/* Tabs - 모바일에서 스크롤 가능 */}
+        <div className="flex border-b shrink-0 overflow-x-auto">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex-1 py-2 text-xs font-medium transition-colors whitespace-nowrap ${
+                activeTab === tab.key
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4 overscroll-contain">
+          {isLoading && <LoadingSpinner />}
+          {isError && (
+            <div className="text-center py-8 text-red-500 text-sm">
+              매물 정보를 불러올 수 없습니다.
+            </div>
+          )}
+          {rawListing && (
+            <>
+              {activeTab === 'listing' && <ListingTab listing={rawListing} />}
+              {activeTab === 'market' && (buildingId ? <MarketTab buildingId={buildingId} /> : <EmptyState message="건물 정보를 불러올 수 없습니다." />)}
+              {activeTab === 'transaction' && (buildingId ? <TransactionTab buildingId={buildingId} /> : <EmptyState message="건물 정보를 불러올 수 없습니다." />)}
+              {activeTab === 'finance' && <FinanceTab listing={rawListing} />}
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {isLoading && <LoadingSpinner />}
-        {isError && (
-          <div className="text-center py-8 text-red-500 text-sm">
-            매물 정보를 불러올 수 없습니다.
-          </div>
-        )}
-        {rawListing && (
-          <>
-            {activeTab === 'listing' && <ListingTab listing={rawListing} />}
-            {activeTab === 'market' && (buildingId ? <MarketTab buildingId={buildingId} /> : <EmptyState message="건물 정보를 불러올 수 없습니다." />)}
-            {activeTab === 'transaction' && (buildingId ? <TransactionTab buildingId={buildingId} /> : <EmptyState message="건물 정보를 불러올 수 없습니다." />)}
-            {activeTab === 'finance' && <FinanceTab listing={rawListing} />}
-          </>
-        )}
-      </div>
-    </div>
+      {/* 모바일에서 동적 높이를 적용하는 스타일 */}
+      <style>{`
+        @media (max-width: 767px) {
+          .absolute.z-10.flex.flex-col.bg-white.shadow-lg {
+            height: ${sheetHeight}vh !important;
+            transition: ${isDragging.current ? 'none' : 'height 0.3s ease-out'};
+          }
+        }
+      `}</style>
+    </>
   );
 }

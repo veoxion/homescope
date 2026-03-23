@@ -17,27 +17,47 @@ services:
       retries: 5
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: homescope-backend
     ports:
       - "3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
-    env_file:
-      - ./backend/.env
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/homescope
+      PORT: "3000"
+      NODE_ENV: production
+      CORS_ORIGIN: http://localhost:3001
+      MOLIT_API_KEY: ${MOLIT_API_KEY:-}
+      KAKAO_API_KEY: ${KAKAO_API_KEY:-}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/v1/listings?swLat=0&swLng=0&neLat=0&neLng=0 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:3000/api/v1
+        NEXT_PUBLIC_KAKAO_MAP_KEY: ${NEXT_PUBLIC_KAKAO_MAP_KEY:-}
     container_name: homescope-frontend
     ports:
       - "3001:3000"
     depends_on:
-      - backend
-    env_file:
-      - ./frontend/.env.local
+      backend:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+    restart: unless-stopped
 
 volumes:
   pgdata:

@@ -18,7 +18,7 @@ export default function MapPage() {
     <div className="flex flex-col h-screen">
       <FilterBar />
       <div className="relative flex-1 overflow-hidden">
-        <div className="absolute top-3 left-3 z-20 w-72 max-w-[calc(100%-6rem)]">
+        <div className="absolute top-3 left-3 z-20 w-72 max-w-[calc(100%-6rem)] max-md:w-[calc(100%-1.5rem)] max-md:left-3 max-md:right-3">
           <AddressSearch />
         </div>
         <KakaoMap />

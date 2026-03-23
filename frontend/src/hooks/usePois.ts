@@ -1,18 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/axios';
-
-interface Poi {
-  id: string;
-  name: string;
-  category: string;
-  lat: number;
-  lng: number;
-  distance: number;
-}
-
-interface PoisResponse {
-  pois: Poi[];
-}
+import type { PoisResponse } from '@/types/api';
 
 export function usePois(lat: number | null, lng: number | null, radius = 500) {
   return useQuery<PoisResponse>({
