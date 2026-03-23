@@ -42,7 +42,7 @@ function ListingTab({ listing }: { listing: RawListing }) {
       <div>
         <p className="text-xs text-gray-500">{listing.address}</p>
         {listing.building_name && (
-          <p className="text-base font-semibold mt-0.5">{listing.building_name}</p>
+          <p className="text-base font-semibold mt-0.5 text-gray-900">{listing.building_name}</p>
         )}
       </div>
       <div className="grid grid-cols-2 gap-2 text-sm">
@@ -64,7 +64,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-gray-50 rounded px-3 py-2">
       <p className="text-xs text-gray-500">{label}</p>
-      <p className="font-medium mt-0.5">{value}</p>
+      <p className="font-medium mt-0.5 text-gray-900">{value}</p>
     </div>
   );
 }
@@ -124,9 +124,9 @@ function MarketTab({ buildingId }: { buildingId: string }) {
         <tbody className="divide-y divide-gray-100">
           {(prices as MarketPrice[]).map((mp) => (
             <tr key={mp.id} className="py-2">
-              <td className="py-2">{mp.tradeType}</td>
-              <td className="text-right py-2">{Number(mp.areaM2).toFixed(0)}㎡</td>
-              <td className="text-right py-2 font-medium">{formatManwon(mp.medianPrice)}</td>
+              <td className="py-2 text-gray-800">{mp.tradeType}</td>
+              <td className="text-right py-2 text-gray-800">{Number(mp.areaM2).toFixed(0)}㎡</td>
+              <td className="text-right py-2 font-medium text-gray-900">{formatManwon(mp.medianPrice)}</td>
               <td className="text-right py-2 text-gray-500">{mp.transactionCount}건</td>
             </tr>
           ))}
@@ -157,9 +157,9 @@ function TransactionTab({ buildingId }: { buildingId: string }) {
           {(txs as Transaction[]).map((tx) => (
             <tr key={tx.id}>
               <td className="py-2 text-gray-600">{formatDate(tx.tradedAt)}</td>
-              <td className="py-2">{tx.tradeType}</td>
-              <td className="text-right py-2">{Number(tx.areaM2).toFixed(0)}㎡</td>
-              <td className="text-right py-2 font-medium">
+              <td className="py-2 text-gray-800">{tx.tradeType}</td>
+              <td className="text-right py-2 text-gray-800">{Number(tx.areaM2).toFixed(0)}㎡</td>
+              <td className="text-right py-2 font-medium text-gray-900">
                 {tx.tradeType === '월세'
                   ? `${formatManwon(tx.deposit)} / ${formatManwon(tx.monthlyRent)}`
                   : formatManwon(tx.price)}
@@ -219,7 +219,7 @@ function FinanceTab({ listing }: { listing: RawListing }) {
   }, [loanAmount, annualRatePct, termYears, repaymentType]);
 
   return (
-    <div className="space-y-4 text-sm">
+    <div className="space-y-4 text-sm text-gray-800">
       <div className="bg-blue-50 rounded-lg p-3">
         <p className="text-xs text-blue-600 mb-1">매물 가격</p>
         <p className="text-lg font-bold text-blue-800">{formatManwon(propertyPrice)}</p>
@@ -302,7 +302,7 @@ function ResultRow({ label, value, highlight }: { label: string; value: string; 
   return (
     <div className="flex justify-between items-center px-3 py-2">
       <span className="text-gray-600 text-xs">{label}</span>
-      <span className={`font-semibold ${highlight ? 'text-blue-700' : ''}`}>{value}</span>
+      <span className={`font-semibold ${highlight ? 'text-blue-700' : 'text-gray-900'}`}>{value}</span>
     </div>
   );
 }
@@ -419,7 +419,7 @@ export default function DetailPanel() {
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
-          <h2 className="text-base font-semibold">매물 상세</h2>
+          <h2 className="text-base font-semibold text-gray-900">매물 상세</h2>
           <button
             onClick={closePanel}
             className="text-gray-400 hover:text-gray-600 text-xl leading-none"
