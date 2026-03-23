@@ -1,0 +1,36 @@
+# 환경 설정 / 민감정보
+.env
+.env.*
+!.env.example
+
+# 문서 (MD 파일)
+*.md
+docs/
+
+# Claude 설정
+.claude/
+
+# Node
+node_modules/
+dist/
+.next/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 빌드 산출물
+coverage/
+*.tsbuildinfo
+
+# Prisma
+backend/prisma/seed.ts
+
+# 기타
+*.log

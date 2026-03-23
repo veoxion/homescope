@@ -1,0 +1,96 @@
+'use client';
+import Script from 'next/script';
+import { Map, MapMarker, MarkerClusterer } from 'react-kakao-maps-sdk';
+import { useMapStore } from '@/stores/mapStore';
+import { useListings } from '@/hooks/useListings';
+import { useDetailStore } from '@/stores/detailStore';
+import { useState } from 'react';
+
+interface Listing {
+  id: string;
+  lat: number;
+  lng: number;
+  trade_type: string;
+  sale_price?: number;
+  jeonse_price?: number;
+  deposit?: number;
+  monthly_rent?: number;
+  area_m2: number;
+  address: string;
+}
+
+const SDK_URL = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&libraries=clusterer&autoload=false`;
+
+export default function KakaoMap() {
+  const [sdkReady, setSdkReady] = useState(false);
+  const [sdkError, setSdkError] = useState(false);
+
+  const center = useMapStore((s) => s.center);
+  const zoom = useMapStore((s) => s.zoom);
+  const setCenter = useMapStore((s) => s.setCenter);
+  const setZoom = useMapStore((s) => s.setZoom);
+  const setBounds = useMapStore((s) => s.setBounds);
+  const openPanel = useDetailStore((s) => s.openPanel);
+
+  const { data: listings = [] } = useListings();
+
+  return (
+    <>
+      <Script
+        src={SDK_URL}
+        strategy="afterInteractive"
+        onLoad={() => {
+          window.kakao.maps.load(() => setSdkReady(true));
+        }}
+        onError={() => setSdkError(true)}
+      />
+
+      {sdkError && (
+        <div className="w-full h-full flex flex-col items-center justify-center text-red-500 gap-1">
+          <p>지도를 불러올 수 없습니다.</p>
+          <p className="text-xs text-gray-400">카카오 SDK 로드 실패. 콘솔을 확인하세요.</p>
+        </div>
+      )}
+
+      {!sdkReady && !sdkError && (
+        <div className="w-full h-full flex items-center justify-center text-gray-500">
+          지도 로딩 중...
+        </div>
+      )}
+
+      {sdkReady && (
+        <Map
+          center={center}
+          level={zoom}
+          className="w-full h-full"
+          onCenterChanged={(map) => {
+            const c = map.getCenter();
+            setCenter({ lat: c.getLat(), lng: c.getLng() });
+          }}
+          onZoomChanged={(map) => setZoom(map.getLevel())}
+          onBoundsChanged={(map) => {
+            const bounds = map.getBounds();
+            const sw = bounds.getSouthWest();
+            const ne = bounds.getNorthEast();
+            setBounds({
+              swLat: sw.getLat(),
+              swLng: sw.getLng(),
+              neLat: ne.getLat(),
+              neLng: ne.getLng(),
+            });
+          }}
+        >
+          <MarkerClusterer averageCenter minLevel={10}>
+            {(listings as Listing[]).map((listing) => (
+              <MapMarker
+                key={listing.id}
+                position={{ lat: listing.lat, lng: listing.lng }}
+                onClick={() => openPanel(listing.id)}
+              />
+            ))}
+          </MarkerClusterer>
+        </Map>
+      )}
+    </>
+  );
+}

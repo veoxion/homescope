@@ -1,0 +1,100 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis, pg_trgm]
+}
+
+model Building {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  location      Unsupported("geography(Point, 4326)")
+  address       String   @unique @db.VarChar(300)
+  buildingName  String?  @map("building_name") @db.VarChar(100)
+  buildYear     Int      @map("build_year") @db.SmallInt
+  residenceType String   @map("residence_type") @db.VarChar(20)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  listings     Listing[]
+  transactions Transaction[]
+  marketPrices MarketPrice[]
+
+  @@index([residenceType], name: "idx_buildings_residence_type")
+  @@map("buildings")
+}
+
+model Listing {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  buildingId   String   @map("building_id") @db.Uuid
+  tradeType    String   @map("trade_type") @db.VarChar(10)
+  salePrice    Int?     @map("sale_price")
+  jeonsePrice  Int?     @map("jeonse_price")
+  deposit      Int?
+  monthlyRent  Int?     @map("monthly_rent")
+  areaM2       Decimal  @map("area_m2") @db.Decimal(7, 2)
+  floor        Int      @db.SmallInt
+  roomCount    Int      @map("room_count") @db.SmallInt
+  status       String   @default("ACTIVE") @db.VarChar(10)
+  listedAt     DateTime @default(now()) @map("listed_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  building Building @relation(fields: [buildingId], references: [id])
+
+  @@index([buildingId], name: "idx_listings_building_id")
+  @@index([status, tradeType], name: "idx_listings_status_trade_type")
+  @@index([areaM2], name: "idx_listings_area_m2")
+  @@index([listedAt], name: "idx_listings_listed_at")
+  @@map("listings")
+}
+
+model Transaction {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  buildingId  String   @map("building_id") @db.Uuid
+  tradeType   String   @map("trade_type") @db.VarChar(10)
+  price       Int
+  deposit     Int?
+  monthlyRent Int?     @map("monthly_rent")
+  areaM2      Decimal  @map("area_m2") @db.Decimal(7, 2)
+  floor       Int      @db.SmallInt
+  tradedAt    DateTime @map("traded_at") @db.Date
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  building Building @relation(fields: [buildingId], references: [id])
+
+  @@unique([buildingId, tradedAt, areaM2, floor, tradeType], name: "uq_transactions_dedup")
+  @@index([buildingId], name: "idx_transactions_building_id")
+  @@index([tradedAt], name: "idx_transactions_traded_at")
+  @@index([buildingId, tradeType, areaM2], name: "idx_transactions_building_trade_area")
+  @@map("transactions")
+}
+
+model MarketPrice {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  buildingId         String   @map("building_id") @db.Uuid
+  tradeType          String   @map("trade_type") @db.VarChar(10)
+  areaM2             Decimal  @map("area_m2") @db.Decimal(7, 2)
+  medianPrice        Int      @map("median_price")
+  medianMonthlyRent  Int?     @map("median_monthly_rent")
+  transactionCount   Int      @map("transaction_count")
+  periodStart        DateTime @map("period_start") @db.Date
+  periodEnd          DateTime @map("period_end") @db.Date
+  calculatedAt       DateTime @default(now()) @map("calculated_at") @db.Timestamptz
+
+  building Building @relation(fields: [buildingId], references: [id])
+
+  @@unique([buildingId, tradeType, areaM2], name: "uq_market_prices_bta")
+  @@map("market_prices")
+}
+
+model Poi {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name     String
+  category String
+  location Unsupported("geography(Point, 4326)")
+
+  @@map("pois")
+}
