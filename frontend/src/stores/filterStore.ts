@@ -35,7 +35,12 @@ const initialState = {
 
 export const useFilterStore = create<FilterStore>((set) => ({
   ...initialState,
-  setTradeType: (tradeType) => set({ tradeType, priceRange: { min: null, max: null } }),
+  setTradeType: (tradeType) => set({
+    tradeType,
+    priceRange: { min: null, max: null },
+    depositRange: { min: null, max: null },
+    monthlyRentRange: { min: null, max: null },
+  }),
   toggleResidenceType: (type) =>
     set((state) => ({
       residenceTypes: state.residenceTypes.includes(type)

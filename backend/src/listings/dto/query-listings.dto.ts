@@ -9,13 +9,13 @@ export class QueryListingsDto {
   @IsOptional() @IsString() tradeType?: string;
   @IsOptional() @IsString() residenceTypes?: string; // comma-separated
   @Type(() => Number) @IsOptional() @IsNumber() @Min(0) priceMin?: number;
-  @Type(() => Number) @IsOptional() @IsNumber() priceMax?: number;
+  @Type(() => Number) @IsOptional() @IsNumber() @Min(0) @Max(10000000) priceMax?: number;
   @Type(() => Number) @IsOptional() @IsNumber() @Min(0) depositMin?: number;
-  @Type(() => Number) @IsOptional() @IsNumber() depositMax?: number;
+  @Type(() => Number) @IsOptional() @IsNumber() @Min(0) @Max(10000000) depositMax?: number;
   @Type(() => Number) @IsOptional() @IsNumber() @Min(0) monthlyRentMin?: number;
-  @Type(() => Number) @IsOptional() @IsNumber() monthlyRentMax?: number;
-  @Type(() => Number) @IsOptional() @IsNumber() areaMin?: number;
-  @Type(() => Number) @IsOptional() @IsNumber() areaMax?: number;
+  @Type(() => Number) @IsOptional() @IsNumber() @Min(0) @Max(100000) monthlyRentMax?: number;
+  @Type(() => Number) @IsOptional() @IsNumber() @Min(0) areaMin?: number;
+  @Type(() => Number) @IsOptional() @IsNumber() @Min(0) @Max(10000) areaMax?: number;
   @Type(() => Number) @IsOptional() @IsNumber() @Min(1) page?: number = 1;
   @Type(() => Number) @IsOptional() @IsNumber() @Min(1) @Max(500) limit?: number = 50;
 }

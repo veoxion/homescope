@@ -12,9 +12,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko">
       <body>
-        <ErrorBoundary>
-          <QueryProvider>{children}</QueryProvider>
-        </ErrorBoundary>
+        <QueryProvider>
+          <ErrorBoundary name="app">
+            {children}
+          </ErrorBoundary>
+        </QueryProvider>
       </body>
     </html>
   );

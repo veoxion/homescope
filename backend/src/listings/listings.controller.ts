@@ -1,9 +1,11 @@
 import { Controller, Get, Post, Patch, Delete, Param, Query, Body, UseGuards } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { ListingsService } from './listings.service';
 import { QueryListingsDto } from './dto/query-listings.dto';
 import { CreateListingDto, UpdateListingDto } from './dto/create-listing.dto';
 import { AdminApiKeyGuard } from '../common/admin-api-key.guard';
 
+@ApiTags('Listings')
 @Controller('listings')
 export class ListingsController {
   constructor(private readonly service: ListingsService) {}

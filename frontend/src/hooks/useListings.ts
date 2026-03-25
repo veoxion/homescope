@@ -3,10 +3,16 @@ import { apiClient } from '@/lib/axios';
 import { useMapStore } from '@/stores/mapStore';
 import { useFilterStore } from '@/stores/filterStore';
 
+/** 카카오 맵 레벨 기준: 이 값 이하일 때 개별 매물 표시, 초과 시 클러스터 표시 */
+export const CLUSTER_ZOOM_THRESHOLD = 5;
+
 export function useListings() {
   const bounds = useMapStore((s) => s.bounds);
+  const zoom = useMapStore((s) => s.zoom);
   const { tradeType, residenceTypes, priceRange, depositRange, monthlyRentRange, areaRange } =
     useFilterStore();
+
+  const showListings = zoom <= CLUSTER_ZOOM_THRESHOLD;
 
   return useQuery({
     queryKey: ['listings', bounds, tradeType, residenceTypes, priceRange, depositRange, monthlyRentRange, areaRange],
@@ -17,6 +23,7 @@ export function useListings() {
         swLng: bounds.swLng,
         neLat: bounds.neLat,
         neLng: bounds.neLng,
+        limit: 200,
       };
       if (tradeType) params.tradeType = tradeType;
       if (residenceTypes.length > 0) params.residenceTypes = residenceTypes.join(',');
@@ -31,6 +38,6 @@ export function useListings() {
       const res = await apiClient.get('/listings', { params });
       return res.data;
     },
-    enabled: !!bounds,
+    enabled: !!bounds && showListings,
   });
 }

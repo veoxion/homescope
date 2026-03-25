@@ -99,6 +99,15 @@ export interface FinanceResult {
   totalPayment: number;
 }
 
+// ---- Cluster ----
+
+export interface Cluster {
+  geohash: string;
+  count: number;
+  center_lat: number;
+  center_lng: number;
+}
+
 // ---- Map ----
 
 export interface MapBounds {

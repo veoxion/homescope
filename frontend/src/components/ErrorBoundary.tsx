@@ -22,8 +22,10 @@ class InnerErrorBoundary extends Component<Props & { onReset?: () => void }, Sta
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    const areaName = this.props.name ?? 'unknown';
-    console.error(`[ErrorBoundary:${areaName}]`, error, info.componentStack);
+    if (process.env.NODE_ENV === 'development') {
+      const areaName = this.props.name ?? 'unknown';
+      console.error(`[ErrorBoundary:${areaName}]`, error, info.componentStack);
+    }
   }
 
   handleReset = () => {

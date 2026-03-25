@@ -67,7 +67,8 @@ export default function AddressSearch() {
         const res = await apiClient.get('/buildings/search', { params: { q: value.trim() } });
         setResults(res.data ?? []);
         setIsOpen(true);
-      } catch {
+      } catch (err) {
+        console.warn('주소 검색 실패:', err instanceof Error ? err.message : String(err));
         setResults([]);
       } finally {
         setIsLoading(false);

@@ -1,7 +1,9 @@
 import { Controller, Get, Query } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { FinanceService } from './finance.service';
 import { LoanLimitDto, InterestDto } from './dto/finance.dto';
 
+@ApiTags('Finance')
 @Controller('finance')
 export class FinanceController {
   constructor(private readonly service: FinanceService) {}

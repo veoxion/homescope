@@ -7,6 +7,12 @@ import { usePois } from '@/hooks/usePois';
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { apiClient } from '@/lib/axios';
 import type { Listing as RawListing, Transaction, MarketPrice, Poi, RepaymentType, FinanceResult } from '@/types/api';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+
+// ---- constants ----
+const DEFAULT_LTV_PCT = 70;
+const DEFAULT_ANNUAL_RATE_PCT = 3.5;
+const DEFAULT_TERM_YEARS = 30;
 
 // ---- helpers ----
 
@@ -180,13 +186,13 @@ function FinanceTab({ listing }: { listing: RawListing }) {
       ? (listing.jeonse_price ?? 0)
       : (listing.deposit ?? 0);
 
-  const [ltv, setLtv] = useState(70);
-  const [annualRatePct, setAnnualRatePct] = useState(3.5);
-  const [termYears, setTermYears] = useState(30);
+  const [ltv, setLtv] = useState(DEFAULT_LTV_PCT);
+  const [annualRatePct, setAnnualRatePct] = useState(DEFAULT_ANNUAL_RATE_PCT);
+  const [termYears, setTermYears] = useState(DEFAULT_TERM_YEARS);
   const [repaymentType, setRepaymentType] = useState<RepaymentType>('equalPayment');
 
   const loanAmount = useMemo(
-    () => Math.round(propertyPrice * (ltv / 100)),
+    () => Math.floor(propertyPrice * (ltv / 100)),
     [propertyPrice, ltv]
   );
 
@@ -214,7 +220,11 @@ function FinanceTab({ listing }: { listing: RawListing }) {
           totalPayment: s.totalPayment,
         });
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (err?.name !== 'CanceledError') {
+          setResult(null);
+        }
+      });
     return () => controller.abort();
   }, [loanAmount, annualRatePct, termYears, repaymentType]);
 
@@ -455,12 +465,12 @@ export default function DetailPanel() {
             </div>
           )}
           {rawListing && (
-            <>
+            <ErrorBoundary name={`detail-${activeTab}`} key={`${selectedListingId}-${activeTab}`}>
               {activeTab === 'listing' && <ListingTab listing={rawListing} />}
               {activeTab === 'market' && (buildingId ? <MarketTab buildingId={buildingId} /> : <EmptyState message="건물 정보를 불러올 수 없습니다." />)}
               {activeTab === 'transaction' && (buildingId ? <TransactionTab buildingId={buildingId} /> : <EmptyState message="건물 정보를 불러올 수 없습니다." />)}
               {activeTab === 'finance' && <FinanceTab listing={rawListing} />}
-            </>
+            </ErrorBoundary>
           )}
         </div>
       </div>

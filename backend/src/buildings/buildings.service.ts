@@ -18,10 +18,11 @@ export class BuildingsService {
         ST_Y(b.location::geometry) AS lat,
         ST_X(b.location::geometry) AS lng
       FROM buildings b
-      WHERE ST_Within(
-        b.location::geometry,
-        ST_MakeEnvelope(${dto.swLng}, ${dto.swLat}, ${dto.neLng}, ${dto.neLat}, 4326)
-      )
+      WHERE ST_X(b.location::geometry) != 0 AND ST_Y(b.location::geometry) != 0
+        AND ST_Within(
+          b.location::geometry,
+          ST_MakeEnvelope(${dto.swLng}, ${dto.swLat}, ${dto.neLng}, ${dto.neLat}, 4326)
+        )
       LIMIT 500
     `;
   }
@@ -94,10 +95,11 @@ export class BuildingsService {
         AVG(ST_Y(location::geometry)) AS center_lat,
         AVG(ST_X(location::geometry)) AS center_lng
       FROM buildings
-      WHERE ST_Within(
-        location::geometry,
-        ST_MakeEnvelope(${dto.swLng}, ${dto.swLat}, ${dto.neLng}, ${dto.neLat}, 4326)
-      )
+      WHERE ST_X(location::geometry) != 0 AND ST_Y(location::geometry) != 0
+        AND ST_Within(
+          location::geometry,
+          ST_MakeEnvelope(${dto.swLng}, ${dto.swLat}, ${dto.neLng}, ${dto.neLat}, 4326)
+        )
       GROUP BY ST_GeoHash(ST_Centroid(location::geometry), ${precision})
     `;
   }

@@ -88,26 +88,119 @@ export class MarketPricesService {
 
   /**
    * 모든 건물의 시세를 일괄 재계산한다.
+   * 단일 SQL로 중위값 계산 + UPSERT를 수행하여 N+1 문제를 제거.
    */
   async calculateAll() {
-    const buildings: Array<{ id: string }> = await this.prisma.$queryRaw`
-      SELECT DISTINCT building_id AS id FROM transactions
-      WHERE traded_at >= NOW() - INTERVAL '12 months'
+    this.logger.log('시세 일괄 재계산 시작 (배치 SQL)');
+
+    const result: Array<{ upserted: number }> = await this.prisma.$queryRaw`
+      WITH median_data AS (
+        SELECT
+          building_id,
+          trade_type,
+          area_m2,
+          COUNT(*)::int AS tx_count,
+          (PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price))::int AS median_price,
+          CASE
+            WHEN COUNT(monthly_rent) FILTER (WHERE monthly_rent IS NOT NULL) > 0
+            THEN (PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY monthly_rent)
+                  FILTER (WHERE monthly_rent IS NOT NULL))::int
+            ELSE NULL
+          END AS median_monthly_rent,
+          (NOW() - INTERVAL '12 months')::date AS period_start,
+          CURRENT_DATE AS period_end
+        FROM transactions
+        WHERE traded_at >= NOW() - INTERVAL '12 months'
+        GROUP BY building_id, trade_type, area_m2
+      ),
+      upserted AS (
+        INSERT INTO market_prices (
+          id, building_id, trade_type, area_m2,
+          median_price, median_monthly_rent, transaction_count,
+          period_start, period_end, calculated_at
+        )
+        SELECT
+          gen_random_uuid(),
+          building_id, trade_type, area_m2,
+          median_price, median_monthly_rent, tx_count,
+          period_start, period_end, NOW()
+        FROM median_data
+        ON CONFLICT (building_id, trade_type, area_m2)
+        DO UPDATE SET
+          median_price = EXCLUDED.median_price,
+          median_monthly_rent = EXCLUDED.median_monthly_rent,
+          transaction_count = EXCLUDED.transaction_count,
+          period_start = EXCLUDED.period_start,
+          period_end = EXCLUDED.period_end,
+          calculated_at = NOW()
+        RETURNING 1
+      )
+      SELECT COUNT(*)::int AS upserted FROM upserted
     `;
 
-    this.logger.log(`시세 계산 시작: ${buildings.length}개 건물`);
-    let processed = 0;
+    const count = result[0]?.upserted ?? 0;
+    this.logger.log(`시세 일괄 재계산 완료: ${count}건 upsert`);
+    return { totalUpserted: count };
+  }
 
-    for (const { id } of buildings) {
-      await this.calculateForBuilding(id);
-      processed++;
-      if (processed % 100 === 0) {
-        this.logger.log(`시세 계산 진행: ${processed}/${buildings.length}`);
-      }
-    }
+  /**
+   * 여러 건물의 시세를 배치로 재계산한다.
+   * syncAll에서 영향받은 건물들만 대상으로 사용.
+   */
+  async calculateForBuildings(buildingIds: string[]) {
+    if (buildingIds.length === 0) return { totalUpserted: 0 };
 
-    this.logger.log(`시세 계산 완료: ${processed}개 건물`);
-    return { totalBuildings: processed };
+    this.logger.log(`시세 배치 재계산: ${buildingIds.length}개 건물`);
+
+    const result: Array<{ upserted: number }> = await this.prisma.$queryRaw`
+      WITH median_data AS (
+        SELECT
+          building_id,
+          trade_type,
+          area_m2,
+          COUNT(*)::int AS tx_count,
+          (PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price))::int AS median_price,
+          CASE
+            WHEN COUNT(monthly_rent) FILTER (WHERE monthly_rent IS NOT NULL) > 0
+            THEN (PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY monthly_rent)
+                  FILTER (WHERE monthly_rent IS NOT NULL))::int
+            ELSE NULL
+          END AS median_monthly_rent,
+          (NOW() - INTERVAL '12 months')::date AS period_start,
+          CURRENT_DATE AS period_end
+        FROM transactions
+        WHERE building_id = ANY(${buildingIds}::uuid[])
+          AND traded_at >= NOW() - INTERVAL '12 months'
+        GROUP BY building_id, trade_type, area_m2
+      ),
+      upserted AS (
+        INSERT INTO market_prices (
+          id, building_id, trade_type, area_m2,
+          median_price, median_monthly_rent, transaction_count,
+          period_start, period_end, calculated_at
+        )
+        SELECT
+          gen_random_uuid(),
+          building_id, trade_type, area_m2,
+          median_price, median_monthly_rent, tx_count,
+          period_start, period_end, NOW()
+        FROM median_data
+        ON CONFLICT (building_id, trade_type, area_m2)
+        DO UPDATE SET
+          median_price = EXCLUDED.median_price,
+          median_monthly_rent = EXCLUDED.median_monthly_rent,
+          transaction_count = EXCLUDED.transaction_count,
+          period_start = EXCLUDED.period_start,
+          period_end = EXCLUDED.period_end,
+          calculated_at = NOW()
+        RETURNING 1
+      )
+      SELECT COUNT(*)::int AS upserted FROM upserted
+    `;
+
+    const count = result[0]?.upserted ?? 0;
+    this.logger.log(`시세 배치 재계산 완료: ${count}건 upsert`);
+    return { totalUpserted: count };
   }
 
   private median(sorted: number[]): number {

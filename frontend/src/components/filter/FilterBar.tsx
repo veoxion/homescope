@@ -10,6 +10,7 @@ const SALE_PRICE_MAX = 200000; // 20억
 const JEONSE_PRICE_MAX = 100000; // 10억
 const DEPOSIT_MAX = 50000; // 5억
 const MONTHLY_RENT_MAX = 500; // 500만원
+const AREA_MAX = 200; // 200㎡
 
 function formatManwon(value: number): string {
   if (value >= 10000) {
@@ -34,12 +35,18 @@ export default function FilterBar() {
   const setPriceRange = useFilterStore((s) => s.setPriceRange);
   const setDepositRange = useFilterStore((s) => s.setDepositRange);
   const setMonthlyRentRange = useFilterStore((s) => s.setMonthlyRentRange);
+  const areaRange = useFilterStore((s) => s.areaRange);
+  const setAreaRange = useFilterStore((s) => s.setAreaRange);
   const resetFilters = useFilterStore((s) => s.resetFilters);
+
+  const [showAreaFilter, setShowAreaFilter] = useState(false);
 
   const hasPriceFilter =
     priceRange.min != null || priceRange.max != null ||
     depositRange.min != null || depositRange.max != null ||
     monthlyRentRange.min != null || monthlyRentRange.max != null;
+
+  const hasAreaFilter = areaRange.min != null || areaRange.max != null;
 
   return (
     <div className="bg-white shadow-sm">
@@ -97,9 +104,23 @@ export default function FilterBar() {
           가격{hasPriceFilter ? ' ✓' : ''}
         </button>
 
+        {/* 면적 필터 토글 */}
+        <button
+          onClick={() => setShowAreaFilter(!showAreaFilter)}
+          className={`px-3 py-1 rounded-full text-sm border transition-colors shrink-0 ${
+            hasAreaFilter
+              ? 'bg-purple-500 text-white border-purple-500'
+              : showAreaFilter
+              ? 'bg-gray-100 text-gray-700 border-gray-400'
+              : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+          }`}
+        >
+          면적{hasAreaFilter ? ' ✓' : ''}
+        </button>
+
         <div className="ml-auto shrink-0">
           <button
-            onClick={() => { resetFilters(); setShowPriceFilter(false); }}
+            onClick={() => { resetFilters(); setShowPriceFilter(false); setShowAreaFilter(false); }}
             className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700"
           >
             초기화
@@ -146,6 +167,19 @@ export default function FilterBar() {
           </div>
         </div>
       )}
+
+      {/* Area filter panel */}
+      {showAreaFilter && (
+        <div className="px-4 pb-3 border-t bg-gray-50">
+          <div className="pt-3">
+            <AreaRangeFilter
+              max={AREA_MAX}
+              value={areaRange}
+              onChange={setAreaRange}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -184,8 +218,9 @@ function PriceRangeFilter({
           onChange={(e) => {
             const v = Number(e.target.value);
             const newMin = v === 0 ? null : v;
-            const newMax = value.max != null && v > value.max ? newMin : value.max;
-            onChange({ min: newMin, max: newMax });
+            // min이 max를 넘으면 max를 min 이상으로 올림
+            const adjustedMax = value.max != null && v > value.max ? newMin : value.max;
+            onChange({ min: newMin, max: adjustedMax });
           }}
           className="flex-1 accent-blue-600"
         />
@@ -198,12 +233,75 @@ function PriceRangeFilter({
           onChange={(e) => {
             const v = Number(e.target.value);
             const newMax = v >= max ? null : v;
-            const newMin = value.min != null && v < value.min ? newMax : value.min;
-            onChange({ min: newMin, max: newMax });
+            // max가 min 아래로 내려가면 min을 max 이하로 내림
+            const adjustedMin = value.min != null && v < value.min ? newMax : value.min;
+            onChange({ min: adjustedMin, max: newMax });
           }}
           className="flex-1 accent-blue-600"
         />
       </div>
+      {value.min != null && value.max != null && value.min > value.max && (
+        <p className="text-xs text-red-500 mt-1">최솟값이 최댓값보다 큽니다.</p>
+      )}
+    </div>
+  );
+}
+
+function AreaRangeFilter({
+  max,
+  value,
+  onChange,
+}: {
+  max: number;
+  value: { min: number | null; max: number | null };
+  onChange: (range: { min: number | null; max: number | null }) => void;
+}) {
+  const currentMin = value.min ?? 0;
+  const currentMax = value.max ?? max;
+
+  return (
+    <div>
+      <div className="flex justify-between text-xs text-gray-600 mb-1">
+        <span className="font-medium">전용면적</span>
+        <span>
+          {currentMin === 0 ? '하한 없음' : `${currentMin}㎡`}
+          {' ~ '}
+          {currentMax >= max ? '상한 없음' : `${currentMax}㎡`}
+        </span>
+      </div>
+      <div className="flex gap-2 items-center">
+        <input
+          type="range"
+          min={0}
+          max={max}
+          step={1}
+          value={currentMin}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            const newMin = v === 0 ? null : v;
+            const adjustedMax = value.max != null && v > value.max ? newMin : value.max;
+            onChange({ min: newMin, max: adjustedMax });
+          }}
+          className="flex-1 accent-purple-600"
+        />
+        <input
+          type="range"
+          min={0}
+          max={max}
+          step={1}
+          value={currentMax}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            const newMax = v >= max ? null : v;
+            const adjustedMin = value.min != null && v < value.min ? newMax : value.min;
+            onChange({ min: adjustedMin, max: newMax });
+          }}
+          className="flex-1 accent-purple-600"
+        />
+      </div>
+      {value.min != null && value.max != null && value.min > value.max && (
+        <p className="text-xs text-red-500 mt-1">최솟값이 최댓값보다 큽니다.</p>
+      )}
     </div>
   );
 }

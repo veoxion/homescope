@@ -1,16 +1,25 @@
-import { Controller, Post, Body, UseGuards, HttpCode, Logger } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, HttpCode, Logger, Inject, Optional } from '@nestjs/common';
+import { ApiTags, ApiSecurity } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
+import { Queue } from 'bullmq';
+import { InjectQueue } from '@nestjs/bullmq';
 import { DataPipelineService } from './data-pipeline.service';
 import { MarketPricesService } from '../market-prices/market-prices.service';
 import { AdminApiKeyGuard } from '../common/admin-api-key.guard';
+import { MARKET_PRICE_QUEUE } from '../queue/queue.module';
 
+@ApiTags('Data Pipeline')
+@ApiSecurity('admin-key')
 @Controller('data-pipeline')
 @UseGuards(AdminApiKeyGuard)
+@SkipThrottle()
 export class DataPipelineController {
   private readonly logger = new Logger(DataPipelineController.name);
 
   constructor(
     private readonly pipelineService: DataPipelineService,
     private readonly marketPricesService: MarketPricesService,
+    @Optional() @InjectQueue(MARKET_PRICE_QUEUE) private readonly marketPriceQueue?: Queue,
   ) {}
 
   // ──────────────────────────────────────────────
@@ -91,11 +100,20 @@ export class DataPipelineController {
   /** 모든 건물 시세 재계산 (비동기 - 즉시 202 반환) */
   @Post('recalculate-prices')
   @HttpCode(202)
-  recalculatePrices() {
-    this.marketPricesService.calculateAll().catch((err) => {
-      this.logger.error(`시세 재계산 실패: ${err.message}`);
-    });
-    return { message: '시세 재계산이 백그라운드에서 시작되었습니다.' };
+  async recalculatePrices() {
+    if (this.marketPriceQueue) {
+      await this.marketPriceQueue.add('recalculate-all', { type: 'recalculate-all' });
+      return { message: '시세 재계산이 작업 큐에 등록되었습니다.' };
+    }
+
+    // Redis 미설정 시 동기 실행 폴백
+    try {
+      const result = await this.marketPricesService.calculateAll();
+      return { message: `시세 재계산 완료: ${result.totalUpserted}건` };
+    } catch (err) {
+      this.logger.error(`시세 재계산 실패: ${err instanceof Error ? err.message : String(err)}`);
+      return { message: '시세 재계산에 실패했습니다. 로그를 확인해주세요.' };
+    }
   }
 
   /** 좌표 미설정 건물 일괄 지오코딩 */

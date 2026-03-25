@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Delete, Param, Query, Body, UseGuards } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { BuildingsService } from './buildings.service';
 import { QueryBuildingsDto, SearchBuildingsDto } from './dto/query-buildings.dto';
 import { CreateBuildingDto } from './dto/create-building.dto';
@@ -7,6 +8,7 @@ import { MarketPricesService } from '../market-prices/market-prices.service';
 import { ListingsService } from '../listings/listings.service';
 import { AdminApiKeyGuard } from '../common/admin-api-key.guard';
 
+@ApiTags('Buildings')
 @Controller('buildings')
 export class BuildingsController {
   constructor(

@@ -28,6 +28,7 @@ export class GeocodingService {
   private readonly REQUEST_INTERVAL_MS = 100;
   private readonly MAX_RETRIES = 2;
   private lastRequestTime = 0;
+  private throttleLock: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly http: HttpService,
@@ -198,13 +199,16 @@ export class GeocodingService {
     return String(error);
   }
 
-  private async throttle() {
-    const now = Date.now();
-    const elapsed = now - this.lastRequestTime;
-    if (elapsed < this.REQUEST_INTERVAL_MS) {
-      await this.delay(this.REQUEST_INTERVAL_MS - elapsed);
-    }
-    this.lastRequestTime = Date.now();
+  private throttle(): Promise<void> {
+    this.throttleLock = this.throttleLock.then(async () => {
+      const now = Date.now();
+      const elapsed = now - this.lastRequestTime;
+      if (elapsed < this.REQUEST_INTERVAL_MS) {
+        await this.delay(this.REQUEST_INTERVAL_MS - elapsed);
+      }
+      this.lastRequestTime = Date.now();
+    });
+    return this.throttleLock;
   }
 
   private delay(ms: number): Promise<void> {

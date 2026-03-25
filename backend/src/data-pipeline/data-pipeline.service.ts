@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, BadGatewayException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { PrismaService } from '../prisma/prisma.service';
@@ -248,11 +248,9 @@ export class DataPipelineService {
       }
     }
 
-    // 영향받은 건물의 시세 재계산
+    // 영향받은 건물의 시세 배치 재계산
     this.logger.log(`시세 재계산: ${allAffected.size}개 건물`);
-    for (const buildingId of allAffected) {
-      await this.marketPricesService.calculateForBuilding(buildingId);
-    }
+    await this.marketPricesService.calculateForBuildings([...allAffected]);
 
     return { totalAffectedBuildings: allAffected.size, summary };
   }
@@ -294,7 +292,7 @@ export class DataPipelineService {
       const code = resultCode ?? 'UNKNOWN';
       const msg = header?.resultMsg ?? '알 수 없는 오류';
       this.logger.error(`MOLIT API 오류 응답: [${code}] ${msg}`);
-      throw new Error(`MOLIT API 오류: [${code}] ${msg}`);
+      throw new BadGatewayException(`MOLIT API 오류: [${code}] ${msg}`);
     }
 
     const body = data?.response?.body;
@@ -354,7 +352,7 @@ export class DataPipelineService {
 
         if (typeof data === 'string' && data.includes('<OpenAPI_ServiceResponse>')) {
           this.logger.error('MOLIT API가 XML 에러를 반환했습니다 - API 키를 확인해주세요');
-          throw new Error('MOLIT API 인증 실패 - serviceKey를 확인해주세요');
+          throw new UnauthorizedException('MOLIT API 인증 실패 - serviceKey를 확인해주세요');
         }
 
         return data;

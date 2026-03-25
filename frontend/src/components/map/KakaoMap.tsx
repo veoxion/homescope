@@ -1,12 +1,18 @@
 'use client';
 import Script from 'next/script';
-import { Map, MarkerClusterer } from 'react-kakao-maps-sdk';
+import { Map } from 'react-kakao-maps-sdk';
 import { useMapStore } from '@/stores/mapStore';
-import { useListings } from '@/hooks/useListings';
+import { useListings, CLUSTER_ZOOM_THRESHOLD } from '@/hooks/useListings';
+import { useClusters } from '@/hooks/useClusters';
 import { useDetailStore } from '@/stores/detailStore';
 import { useState, useRef, useCallback } from 'react';
 import type { Listing } from '@/types/api';
 import ListingMarker from './ListingMarker';
+import ClusterMarker from './ClusterMarker';
+
+if (!process.env.NEXT_PUBLIC_KAKAO_MAP_KEY) {
+  console.warn('NEXT_PUBLIC_KAKAO_MAP_KEY가 설정되지 않았습니다. 지도가 로드되지 않습니다.');
+}
 
 const SDK_URL = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&libraries=clusterer&autoload=false`;
 
@@ -22,8 +28,13 @@ export default function KakaoMap() {
   const openPanel = useDetailStore((s) => s.openPanel);
   const selectedListingId = useDetailStore((s) => s.selectedListingId);
 
-  const { data: listings = [] } = useListings();
+  const showListings = zoom <= CLUSTER_ZOOM_THRESHOLD;
+  const showClusters = !showListings;
 
+  const { data: listings = [] } = useListings();
+  const { data: clusters = [] } = useClusters(showClusters);
+
+  const mapRef = useRef<any>(null);
   const boundsTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const updateBounds = useCallback(
     (map: any) => {
@@ -41,6 +52,14 @@ export default function KakaoMap() {
       }, 300);
     },
     [setBounds],
+  );
+
+  const handleClusterClick = useCallback(
+    (lat: number, lng: number) => {
+      setCenter({ lat, lng });
+      setZoom(Math.max(1, zoom - 2));
+    },
+    [setCenter, setZoom, zoom],
   );
 
   return (
@@ -69,6 +88,7 @@ export default function KakaoMap() {
 
       {sdkReady && (
         <Map
+          ref={mapRef}
           center={center}
           level={zoom}
           className="w-full h-full"
@@ -79,8 +99,17 @@ export default function KakaoMap() {
           onZoomChanged={(map) => setZoom(map.getLevel())}
           onBoundsChanged={updateBounds}
         >
-          <MarkerClusterer averageCenter minLevel={10}>
-            {(listings as Listing[]).map((listing) => (
+          {showClusters &&
+            clusters.map((cluster) => (
+              <ClusterMarker
+                key={cluster.geohash}
+                cluster={cluster}
+                onClick={() => handleClusterClick(cluster.center_lat, cluster.center_lng)}
+              />
+            ))}
+
+          {showListings &&
+            (listings as Listing[]).map((listing) => (
               <ListingMarker
                 key={listing.id}
                 listing={listing}
@@ -88,7 +117,6 @@ export default function KakaoMap() {
                 isSelected={listing.id === selectedListingId}
               />
             ))}
-          </MarkerClusterer>
         </Map>
       )}
     </>

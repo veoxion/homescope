@@ -13,6 +13,20 @@ export class ListingsService {
       ? dto.residenceTypes.split(',')
       : undefined;
 
+    // min > max 자동 swap 방어
+    if (dto.priceMin != null && dto.priceMax != null && dto.priceMin > dto.priceMax) {
+      [dto.priceMin, dto.priceMax] = [dto.priceMax, dto.priceMin];
+    }
+    if (dto.depositMin != null && dto.depositMax != null && dto.depositMin > dto.depositMax) {
+      [dto.depositMin, dto.depositMax] = [dto.depositMax, dto.depositMin];
+    }
+    if (dto.monthlyRentMin != null && dto.monthlyRentMax != null && dto.monthlyRentMin > dto.monthlyRentMax) {
+      [dto.monthlyRentMin, dto.monthlyRentMax] = [dto.monthlyRentMax, dto.monthlyRentMin];
+    }
+    if (dto.areaMin != null && dto.areaMax != null && dto.areaMin > dto.areaMax) {
+      [dto.areaMin, dto.areaMax] = [dto.areaMax, dto.areaMin];
+    }
+
     const page = dto.page ?? 1;
     const limit = dto.limit ?? 50;
     const offset = (page - 1) * limit;
@@ -29,6 +43,7 @@ export class ListingsService {
       FROM listings l
       JOIN buildings b ON b.id = l.building_id
       WHERE l.status = 'ACTIVE'
+        AND ST_X(b.location::geometry) != 0 AND ST_Y(b.location::geometry) != 0
         AND ST_Within(
           b.location::geometry,
           ST_MakeEnvelope(${dto.swLng}, ${dto.swLat}, ${dto.neLng}, ${dto.neLat}, 4326)
