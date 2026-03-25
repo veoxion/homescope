@@ -11,7 +11,15 @@ import { PoisModule } from './pois/pois.module';
 import { FinanceModule } from './finance/finance.module';
 import { DataPipelineModule } from './data-pipeline/data-pipeline.module';
 import { HealthModule } from './health/health.module';
-import { QueueModule } from './queue/queue.module';
+
+const optionalImports: any[] = [];
+
+// Redis가 설정된 경우에만 QueueModule 로드
+if (process.env.REDIS_HOST) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { QueueModule } = require('./queue/queue.module');
+  optionalImports.push(QueueModule);
+}
 
 @Module({
   imports: [
@@ -37,7 +45,7 @@ import { QueueModule } from './queue/queue.module';
     FinanceModule,
     DataPipelineModule,
     HealthModule,
-    QueueModule,
+    ...optionalImports,
   ],
   providers: [
     {

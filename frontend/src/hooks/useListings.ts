@@ -4,7 +4,7 @@ import { useMapStore } from '@/stores/mapStore';
 import { useFilterStore } from '@/stores/filterStore';
 
 /** 카카오 맵 레벨 기준: 이 값 이하일 때 개별 매물 표시, 초과 시 클러스터 표시 */
-export const CLUSTER_ZOOM_THRESHOLD = 5;
+export const CLUSTER_ZOOM_THRESHOLD = 6;
 
 export function useListings() {
   const bounds = useMapStore((s) => s.bounds);

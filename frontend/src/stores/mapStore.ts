@@ -14,7 +14,7 @@ interface MapStore {
 
 export const useMapStore = create<MapStore>((set) => ({
   center: { lat: 37.5665, lng: 126.978 }, // 서울 시청
-  zoom: 16,
+  zoom: 8,
   bounds: null,
   selectedBuildingId: null,
   setCenter: (center) => set({ center }),

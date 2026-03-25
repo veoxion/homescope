@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { QueryBuildingsDto, SearchBuildingsDto } from './dto/query-buildings.dto';
 import { CreateBuildingDto } from './dto/create-building.dto';
 
@@ -88,10 +89,11 @@ export class BuildingsService {
   async getClusters(dto: QueryBuildingsDto) {
     const zoom = dto.zoom ?? 12;
     const precision = zoom <= 10 ? 3 : zoom <= 13 ? 4 : zoom <= 15 ? 5 : 6;
-    return this.prisma.$queryRaw`
+    const precisionSql = Prisma.raw(String(precision));
+    const rows = await this.prisma.$queryRaw<any[]>`
       SELECT
-        ST_GeoHash(ST_Centroid(ST_Collect(location::geometry)), ${precision}) AS geohash,
-        COUNT(*) AS count,
+        ST_GeoHash(ST_Centroid(ST_Collect(location::geometry)), ${precisionSql}) AS geohash,
+        COUNT(*)::int AS count,
         AVG(ST_Y(location::geometry)) AS center_lat,
         AVG(ST_X(location::geometry)) AS center_lng
       FROM buildings
@@ -100,7 +102,8 @@ export class BuildingsService {
           location::geometry,
           ST_MakeEnvelope(${dto.swLng}, ${dto.swLat}, ${dto.neLng}, ${dto.neLat}, 4326)
         )
-      GROUP BY ST_GeoHash(ST_Centroid(location::geometry), ${precision})
+      GROUP BY ST_GeoHash(ST_Centroid(location::geometry), ${precisionSql})
     `;
+    return rows;
   }
 }
